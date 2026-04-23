@@ -1,0 +1,9 @@
+[23/4/2026 18:36:06]  [ACCESO] Ruta accedida: Servidor iniciado en el puerto 3000
+[23/4/2026 18:36:20]  [ERROR] Ruta no encontrada: /favicon.ico
+[23/4/2026 18:36:23]  [ACCESO] Ruta accedida: GET /status
+[23/4/2026 18:38:52]  [ACCESO] Ruta accedida: Servidor iniciado en el puerto 3000
+[23/4/2026 18:41:28]  [ACCESO] Ruta accedida: Servidor iniciado en el puerto 3000
+[23/4/2026 18:41:36]  [ACCESO] Ruta accedida: Servidor iniciado en el puerto 3000
+[23/4/2026 18:43:12]  [ACCESO] Ruta accedida: Servidor iniciado en el puerto 3000
+[23/4/2026 18:45:26]  [ACCESO] Ruta accedida: Servidor iniciado en el puerto 3000
+[23/4/2026 18:45:43]  [ACCESO] Ruta accedida: Servidor iniciado en el puerto 3000
