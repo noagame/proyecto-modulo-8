@@ -1,6 +1,5 @@
 /**
  * controllers/uploadController.js
- * Sub-tarea 8.3 — Subida de imagen de avatar.
  */
 
 const { Perfil } = require('../models');
@@ -18,7 +17,7 @@ exports.subirAvatar = async (req, res, next) => {
             return apiResponse.error(res, 'No se proporcionó ningún archivo.', null, 400);
         }
 
-        // Construir URL relativa accesible desde el servidor
+        // Ruta relativa accesible desde el servidor (acepta /uploads/...)
         const avatarUrl = `/uploads/${req.file.filename}`;
 
         // Actualizar el perfil del usuario autenticado

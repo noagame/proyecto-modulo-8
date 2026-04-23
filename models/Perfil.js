@@ -14,7 +14,12 @@ const Perfil = sequelize.define('Perfil', {
         type: DataTypes.STRING,
         allowNull: true,
         validate: {
-            isUrl: { msg: 'El avatarUrl debe ser una URL válida.' }
+            isValidUrl(value) {
+                if (value === null || value === undefined) return;
+                // Acepta rutas relativas (/uploads/...) o URLs absolutas (http/https)
+                const ok = /^\//.test(value) || /^https?:\/\//.test(value);
+                if (!ok) throw new Error('El avatarUrl debe ser una ruta relativa o URL válida.');
+            }
         }
     },
     // FK usuarioId — declarada explícitamente para claridad
