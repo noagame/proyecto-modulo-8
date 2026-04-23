@@ -1,118 +1,107 @@
-# Módulo 7 — Persistencia con PostgreSQL y Sequelize
+# 🚀 Proyecto Backend — Módulo 8
 
-> **Repositorio**: [noagame/proyecto-modulo-7](https://github.com/noagame/proyecto-modulo-7)  
-> **Estudiante**: Fabián Del Villar  
-> **Stack**: Node.js · Express · Sequelize · PostgreSQL
+> **API RESTful con autenticación JWT, protección de rutas y subida de archivos**
+> Base tecnológica: Node.js · Express · Sequelize · PostgreSQL · bcryptjs · jsonwebtoken · Multer
 
 ---
 
-## Tabla de Contenidos
+## 📋 Tabla de contenidos
 
 1. [Descripción](#descripción)
-2. [Requisitos del Sistema](#requisitos-del-sistema)
-3. [Instalación](#instalación)
-4. [Variables de Entorno](#variables-de-entorno)
-5. [Estructura del Proyecto](#estructura-del-proyecto)
-6. [Modelos y Relaciones](#modelos-y-relaciones)
-7. [Endpoints CRUD](#endpoints-crud)
-8. [Transacciones y Rollback](#transacciones-y-rollback)
-9. [Manejo de Errores](#manejo-de-errores)
-10. [Ejecución](#ejecución)
-11. [Ejemplos de Uso (curl / Postman)](#ejemplos-de-uso)
-12. [Logs del Sistema](#logs-del-sistema)
-13. [Tips y Recomendaciones](#tips-y-recomendaciones)
-14. [Posibles Errores y Soluciones](#posibles-errores-y-soluciones)
-15. [Observaciones Técnicas](#observaciones-técnicas)
+2. [Estructura del proyecto](#estructura-del-proyecto)
+3. [Instalación y configuración](#instalación-y-configuración)
+4. [Variables de entorno](#variables-de-entorno)
+5. [Endpoints de la API](#endpoints-de-la-api)
+6. [Formato estándar de respuestas](#formato-estándar-de-respuestas)
+7. [Autenticación JWT — Cómo usarla](#autenticación-jwt--cómo-usarla)
+8. [Resultados de pruebas](#resultados-de-pruebas)
+9. [Observaciones y decisiones de diseño](#observaciones-y-decisiones-de-diseño)
+10. [Tips de desarrollo](#tips-de-desarrollo)
+11. [Errores comunes y soluciones](#errores-comunes-y-soluciones)
 
 ---
 
 ## Descripción
 
-El **Módulo 7** extiende la arquitectura del Módulo 6 añadiendo una capa de persistencia real con **PostgreSQL** gestionada a través del ORM **Sequelize**. Se implementan:
+El Módulo 8 extiende el backend del Módulo 7 (persistencia con Sequelize/PostgreSQL) añadiendo:
 
-- Conexión a base de datos con `sequelize.authenticate()` antes de iniciar el servidor.
-- Tres modelos relacionados: `Usuario`, `Perfil` (1:1) y `Post` (1:N).
-- CRUD completo para `Usuario` y `Post` a través de una API REST.
-- **Transacciones atómicas** con rollback automático al crear Usuario + Perfil.
-- Middleware de errores mejorado para capturar errores de Sequelize (validación y unicidad).
-
----
-
-## Requisitos del Sistema
-
-| Herramienta | Versión mínima |
-|---|---|
-| Node.js | v18.0.0 |
-| npm | v8.0.0 |
-| PostgreSQL | v13.0 |
-| Sistema Operativo | Linux / macOS / Windows |
-
-### Verificar versiones instaladas
-
-```bash
-node --version    # >= v18.0.0
-npm --version     # >= v8.0.0
-psql --version    # >= 13.0
-```
-
-> [!TIP]
-> Si no tienes PostgreSQL instalado en Linux, usa:
-> ```bash
-> sudo apt update && sudo apt install postgresql postgresql-contrib
-> sudo systemctl start postgresql
-> ```
+- **Autenticación con JWT**: registro de usuarios con contraseña hasheada (`bcryptjs`) y login con firma de token (`jsonwebtoken`).
+- **Protección de rutas**: middleware `authMiddleware` que verifica el `Bearer token` en el header `Authorization`.
+- **Subida de archivos**: `multer` con validación de tipo MIME y límite de tamaño para avatares de usuario.
+- **Respuestas estandarizadas**: helper `apiResponse` que unifica el formato `{ status, message, data }` en toda la API.
 
 ---
 
-## Instalación
+## Estructura del proyecto
 
-### 1. Clonar el repositorio
-
-```bash
-git clone https://github.com/noagame/proyecto-modulo-7
-cd proyecto-modulo-7
+```
+proyecto-modulo-8/
+├── config/
+│   └── database.js          # Conexión Sequelize + PostgreSQL
+├── controllers/
+│   ├── authController.js    # register, login
+│   ├── homeController.js    # GET /, GET /status
+│   ├── postController.js    # CRUD posts
+│   ├── uploadController.js  # POST /api/upload/avatar
+│   └── usuarioController.js # CRUD usuarios
+├── middlewares/
+│   ├── authMiddleware.js    # Verifica JWT Bearer token
+│   ├── errorMiddleware.js   # Manejo centralizado de errores
+│   ├── logginMiddleware.js  # Log de peticiones
+│   └── uploadMiddleware.js  # Multer (diskStorage, filtro MIME, 2 MB)
+├── models/
+│   ├── index.js             # Asociaciones + sync Sequelize
+│   ├── Perfil.js            # Modelo Perfil (1:1 con Usuario)
+│   ├── Post.js              # Modelo Post (1:N con Usuario)
+│   └── Usuario.js           # Modelo Usuario
+├── routes/
+│   ├── authRoutes.js        # /api/auth/*
+│   ├── postRoutes.js        # /api/posts/*
+│   ├── router.js            # Router principal
+│   ├── uploadRoutes.js      # /api/upload/*
+│   └── usuarioRoutes.js     # /api/usuarios/*
+├── uploads/                 # Archivos subidos (excluido de git)
+├── utils/
+│   ├── apiResponse.js       # Helper de respuestas estándar
+│   └── logger.js            # Logger de accesos y errores
+├── .env                     # Variables de entorno (excluido de git)
+├── .gitignore
+├── index.js                 # Entry point de la aplicación
+└── package.json
 ```
 
-### 2. Instalar dependencias
+---
+
+## Instalación y configuración
 
 ```bash
+# 1. Clonar el repositorio
+git clone git@github.com:noagame/proyecto-modulo-8.git
+cd proyecto-modulo-8
+
+# 2. Instalar dependencias
 npm install
+
+# 3. Crear el archivo .env (ver sección siguiente)
+cp .env.example .env   # o crear manualmente
+
+# 4. Asegurarse de que PostgreSQL esté corriendo y la BD exista
+createdb modulo7_db    # o el nombre que configures
+
+# 5. Iniciar en modo desarrollo (nodemon + sync automático de tablas)
+npm run dev
+
+# 6. Iniciar en producción
+npm start
 ```
 
-**Dependencias instaladas:**
-
-| Paquete | Rol |
-|---|---|
-| `express` | Framework HTTP |
-| `dotenv` | Variables de entorno |
-| `sequelize` | ORM para SQL |
-| `pg` | Driver de PostgreSQL |
-| `pg-hstore` | Serialización de campos hstore |
-| `nodemon` *(dev)* | Reinicio automático en desarrollo |
-
-### 3. Crear la base de datos en PostgreSQL
-
-```bash
-# Acceder como superusuario de PostgreSQL
-sudo -u postgres psql
-
-# Dentro de psql:
-CREATE USER modulo7_db WITH PASSWORD 'test1';
-CREATE DATABASE modulo7_db OWNER modulo7_db;
-GRANT ALL PRIVILEGES ON DATABASE modulo7_db TO modulo7_db;
-\q
-```
-
-> [!IMPORTANT]
-> La base de datos debe existir **antes** de arrancar el servidor.
-> Sequelize crea las tablas automáticamente con `sync({ alter: true })` en desarrollo,
-> pero no puede crear la base de datos en sí.
+> **Las tablas se crean automáticamente** cuando `NODE_ENV=development` gracias a `sequelize.sync({ alter: true })`.
 
 ---
 
-## Variables de Entorno
+## Variables de entorno
 
-Crear el archivo `.env` en la raíz del proyecto (ya incluido en `.gitignore`):
+Crea un archivo `.env` en la raíz con el siguiente contenido:
 
 ```env
 # Servidor
@@ -121,481 +110,297 @@ NODE_ENV=development
 
 # Base de datos PostgreSQL
 DB_HOST=localhost
-DB_USER=modulo7_db
-DB_PASS=test1
-DB_NAME=modulo7_db
 DB_PORT=5432
-DB_DIALECT=postgres
+DB_NAME=modulo7_db
+DB_USER=postgres
+DB_PASSWORD="tu_password_aqui"
+
+# Autenticación JWT
+JWT_SECRET=tu_clave_secreta_muy_larga_y_aleatoria
+JWT_EXPIRES_IN=24h
 ```
 
-> [!TIP]
-> Existe un archivo `config/database.js` que lee estas variables.
-> Si cambias el nombre de usuario o contraseña en PostgreSQL,
-> recuerda actualizar `.env` con los valores correctos.
-
-> [!WARNING]
-> Nunca subas el archivo `.env` a GitHub. Verifica que `.gitignore`
-> contenga la línea `.env` antes de hacer cualquier commit.
+> ⚠️ **Nunca commitees el `.env` al repositorio.** Ya está en `.gitignore`.
 
 ---
 
-## Estructura del Proyecto
+## Endpoints de la API
 
-```
-proyecto-modulo-7/
-│
-├── index.js                    # Punto de entrada — conecta DB y levanta servidor
-├── package.json
-├── .env                        # Variables de entorno (gitignored)
-├── .gitignore
-├── README.md
-│
-├── config/
-│   └── database.js             # Instancia Sequelize + función connectDB()
-│
-├── models/
-│   ├── index.js                # Asociaciones + sequelize.sync()
-│   ├── Usuario.js              # Modelo Usuario (nombre, email, password)
-│   ├── Perfil.js               # Modelo Perfil — relación 1:1 con Usuario
-│   └── Post.js                 # Modelo Post   — relación 1:N con Usuario
-│
-├── controllers/
-│   ├── homeController.js       # Rutas base (/, /status)
-│   ├── usuarioController.js    # CRUD Usuario + transacción
-│   └── postController.js       # CRUD Post
-│
-├── routes/
-│   ├── router.js               # Router principal (monta /api/*)
-│   ├── usuarioRoutes.js        # Rutas /api/usuarios
-│   └── postRoutes.js           # Rutas /api/posts
-│
-├── middlewares/
-│   ├── logginMiddleware.js     # Log de cada request HTTP
-│   └── errorMiddleware.js      # Manejo global de errores + errores Sequelize
-│
-├── utils/
-│   └── logger.js               # Escritura en archivo de logs
-│
-├── logs/
-│   └── log.txt                 # Registro de accesos y errores
-│
-└── public/
-    └── index.html              # Página estática de bienvenida
-```
-
----
-
-## Modelos y Relaciones
-
-### Diagrama de Relaciones
-
-```
-┌─────────────┐         ┌─────────────┐
-│   Usuario   │ 1 ──── 1│    Perfil   │
-│─────────────│         │─────────────│
-│ nombre      │         │ bio         │
-│ email       │         │ avatarUrl   │
-│ password    │         │ usuarioId   │
-└─────────────┘         └─────────────┘
-       │
-       │ 1 ──── N
-       ▼
-┌─────────────┐
-│    Post     │
-│─────────────│
-│ titulo      │
-│ contenido   │
-│ usuarioId   │
-└─────────────┘
-```
-
-### Descripción de modelos
-
-| Modelo | Tabla | Campos clave | Relación |
-|---|---|---|---|
-| `Usuario` | `usuarios` | nombre, email (unique), password | — |
-| `Perfil` | `perfiles` | bio, avatarUrl, usuarioId | `belongsTo Usuario` (1:1) |
-| `Post` | `posts` | titulo, contenido, usuarioId | `belongsTo Usuario` (1:N) |
-
-> [!NOTE]
-> `sequelize.sync({ alter: true })` se ejecuta **solo cuando `NODE_ENV=development`**.
-> En producción deberías usar migraciones (`sequelize-cli`) en lugar de `sync`.
-
----
-
-## Endpoints CRUD
-
-### Usuarios — `/api/usuarios`
-
-| Método | Endpoint | Descripción | Body requerido |
-|---|---|---|---|
-| `POST` | `/api/usuarios` | Crear usuario + perfil (transacción) | `nombre`, `email`, `password` |
-| `GET` | `/api/usuarios` | Listar todos los usuarios con perfil | — |
-| `GET` | `/api/usuarios/:id` | Obtener usuario por ID | — |
-| `PUT` | `/api/usuarios/:id` | Actualizar datos del usuario | campos a modificar |
-| `DELETE` | `/api/usuarios/:id` | Eliminar usuario (y perfil por CASCADE) | — |
-
-### Posts — `/api/posts`
-
-| Método | Endpoint | Descripción | Body requerido |
-|---|---|---|---|
-| `POST` | `/api/posts` | Crear post | `titulo`, `contenido`, `usuarioId` |
-| `GET` | `/api/posts` | Listar todos los posts con autor | — |
-| `GET` | `/api/posts/:id` | Obtener post por ID | — |
-| `PUT` | `/api/posts/:id` | Actualizar post | campos a modificar |
-| `DELETE` | `/api/posts/:id` | Eliminar post | — |
-
-### Rutas de sistema
+### 🔓 Públicos (sin token)
 
 | Método | Endpoint | Descripción |
-|---|---|---|
-| `GET` | `/` | Página HTML de bienvenida |
-| `GET` | `/status` | Estado del servidor en JSON |
+|--------|----------|-------------|
+| GET | `/` | Página de bienvenida |
+| GET | `/status` | Estado del servidor |
+| POST | `/api/auth/register` | Registro de nuevo usuario |
+| POST | `/api/auth/login` | Login — devuelve JWT |
+| GET | `/api/usuarios` | Listar todos los usuarios |
+| GET | `/api/usuarios/:id` | Obtener usuario por ID |
+| GET | `/api/posts` | Listar todos los posts |
+| GET | `/api/posts/:id` | Obtener post por ID |
+
+### 🔐 Protegidos (requieren `Authorization: Bearer <token>`)
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| PUT | `/api/usuarios/:id` | Actualizar usuario |
+| DELETE | `/api/usuarios/:id` | Eliminar usuario |
+| POST | `/api/posts` | Crear post |
+| PUT | `/api/posts/:id` | Actualizar post |
+| DELETE | `/api/posts/:id` | Eliminar post |
+| POST | `/api/upload/avatar` | Subir avatar (campo: `avatar`) |
 
 ---
 
-## Transacciones y Rollback
+## Formato estándar de respuestas
 
-La creación de un **Usuario** y su **Perfil** se realiza dentro de una única transacción:
+Todas las respuestas siguen el mismo formato:
 
-```
-POST /api/usuarios
-         │
-         ├── BEGIN TRANSACTION
-         │
-         ├── INSERT INTO usuarios ...  ✅
-         ├── INSERT INTO perfiles ...  ✅
-         │
-         └── COMMIT ──► 201 Created
-                   │
-                   └── Si falla cualquier INSERT ──► ROLLBACK automático
-                                                        logger.registrarError()
-                                                        next(error) → errorMiddleware
-```
-
-> [!TIP]
-> Si el email ya existe, Sequelize lanzará un `UniqueConstraintError` antes de llegar
-> al segundo INSERT. El rollback es inmediato y no queda ningún registro a medias.
-
----
-
-## Manejo de Errores
-
-El `errorMiddleware.js` intercepta tres categorías:
-
-| Tipo de Error | Status HTTP | Causa |
-|---|---|---|
-| `ValidationError` (Sequelize) | `400 Bad Request` | Campo requerido vacío, formato inválido |
-| `UniqueConstraintError` (Sequelize) | `409 Conflict` | Email ya registrado |
-| Error genérico | `500 Internal Server Error` | Error inesperado del servidor |
-
-**Ejemplo de respuesta 400:**
+**Éxito:**
 ```json
 {
-  "error": "Error de validación.",
-  "detalles": ["El email no tiene un formato válido."],
-  "timestamp": "2026-04-23T22:30:00.000Z",
-  "path": "/api/usuarios"
+  "status": "success",
+  "message": "Descripción del resultado",
+  "data": { ... }
 }
 ```
 
-**Ejemplo de respuesta 409:**
+**Error:**
 ```json
 {
-  "error": "El recurso ya existe.",
-  "detalles": ["El email ya está registrado."],
-  "timestamp": "2026-04-23T22:30:00.000Z",
-  "path": "/api/usuarios"
+  "status": "error",
+  "message": "Descripción del error",
+  "data": null
 }
 ```
 
 ---
 
-## Ejecución
+## Autenticación JWT — Cómo usarla
 
-### Modo desarrollo (con nodemon)
-
-```bash
-npm run dev
-```
-
-### Modo producción
+### 1. Registrar un usuario
 
 ```bash
-npm start
-```
-
-**Salida esperada en consola:**
-
-```
-🔄 Modelos sincronizados con la base de datos (alter: true).
-✅ Conexión a PostgreSQL establecida correctamente.
-Servidor en http://localhost:3000
-    Rutas disponibles:
-        - GET  http://localhost:3000/
-        - GET  http://localhost:3000/status
-        - POST http://localhost:3000/api/usuarios
-        - GET  http://localhost:3000/api/usuarios
-        - POST http://localhost:3000/api/posts
-        - GET  http://localhost:3000/api/posts
-```
-
----
-
-## Ejemplos de Uso
-
-### Con `curl`
-
-```bash
-# Crear usuario (con perfil en transacción)
-curl -X POST http://localhost:3000/api/usuarios \
+curl -X POST http://localhost:3000/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"nombre":"Ana López","email":"ana@mail.com","password":"secret123","bio":"Dev fullstack","avatarUrl":"https://i.pravatar.cc/150"}'
+  -d '{
+    "nombre": "Juan Pérez",
+    "email": "juan@ejemplo.com",
+    "password": "MiContraseña123",
+    "bio": "Desarrollador web"
+  }'
+```
 
-# Listar usuarios
-curl http://localhost:3000/api/usuarios | jq
+Respuesta:
+```json
+{
+  "status": "success",
+  "message": "Usuario registrado correctamente.",
+  "data": {
+    "token": "eyJhbGci...",
+    "usuario": { "id": 1, "nombre": "Juan Pérez", "email": "juan@ejemplo.com" }
+  }
+}
+```
 
-# Obtener usuario por ID
-curl http://localhost:3000/api/usuarios/1 | jq
+### 2. Hacer login
 
-# Actualizar usuario
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{ "email": "juan@ejemplo.com", "password": "MiContraseña123" }'
+```
+
+### 3. Usar el token en rutas protegidas
+
+```bash
 curl -X PUT http://localhost:3000/api/usuarios/1 \
+  -H "Authorization: Bearer eyJhbGci..." \
   -H "Content-Type: application/json" \
-  -d '{"nombre":"Ana García"}'
-
-# Eliminar usuario
-curl -X DELETE http://localhost:3000/api/usuarios/1
-
-# Crear post
-curl -X POST http://localhost:3000/api/posts \
-  -H "Content-Type: application/json" \
-  -d '{"titulo":"Mi primer post","contenido":"Hola mundo desde la API","usuarioId":1}'
-
-# Listar posts
-curl http://localhost:3000/api/posts | jq
+  -d '{ "nombre": "Juan Actualizado" }'
 ```
 
-### Con Postman
-
-1. Importar colección nueva → **New Request**
-2. Seleccionar método (`POST`, `GET`, `PUT`, `DELETE`)
-3. URL: `http://localhost:3000/api/usuarios`
-4. En `Body` → `raw` → `JSON`, pegar el payload
-5. Enviar y revisar la respuesta
-
-> [!TIP]
-> Instala la extensión **Thunder Client** en VS Code para probar la API
-> directamente desde el editor sin abrir Postman.
-
----
-
-## Logs del Sistema
-
-Todos los accesos y errores quedan registrados en `logs/log.txt`:
+### 4. Subir avatar
 
 ```bash
-# Ver todos los logs
-cat logs/log.txt
-
-# Últimas 20 líneas en tiempo real
-tail -f logs/log.txt
-
-# Filtrar solo errores
-grep "ERROR" logs/log.txt
-
-# Filtrar por ruta
-grep "/api/usuarios" logs/log.txt
+curl -X POST http://localhost:3000/api/upload/avatar \
+  -H "Authorization: Bearer eyJhbGci..." \
+  -F "avatar=@/ruta/a/imagen.png"
 ```
 
 ---
 
-## Tips y Recomendaciones
+## Resultados de pruebas
 
-> [!TIP]
-> **`alter: true` vs migraciones** — En desarrollo, `sync({ alter: true })` modifica
-> las tablas para reflejar cambios en los modelos sin borrar datos.
-> Para producción, usa `sequelize-cli` con migraciones versionadas:
+Pruebas ejecutadas manualmente con `curl` sobre el servidor en `localhost:3000`.
+
+| # | Prueba | Resultado | HTTP |
+|---|--------|-----------|------|
+| 1 | `POST /api/auth/register` — nuevo usuario | ✅ Token generado, usuario creado | 200 |
+| 2 | `POST /api/auth/register` — email duplicado | ✅ Error 409 estandarizado | 409 |
+| 3 | `POST /api/auth/login` — credenciales válidas | ✅ Token generado | 200 |
+| 4 | `POST /api/auth/login` — password incorrecta | ✅ Error 401 "Credenciales inválidas" | 401 |
+| 5 | `GET /api/usuarios` — público | ✅ Lista con perfil incluido | 200 |
+| 6 | `GET /api/usuarios/1` — por ID | ✅ Usuario + Perfil | 200 |
+| 7 | `PUT /api/usuarios/1` — sin token | ✅ Error 401 "Token no proporcionado" | 401 |
+| 8 | `PUT /api/usuarios/1` — con token | ✅ Usuario actualizado | 200 |
+| 9 | `POST /api/posts` — con token | ✅ Post creado | 201 |
+| 10 | `GET /api/posts` — público | ✅ Posts con autor incluido | 200 |
+| 11 | `DELETE /api/posts/1` — sin token | ✅ Error 401 bloqueado | 401 |
+| 12 | `GET /api/noexiste` — ruta 404 | ✅ Error 404 estandarizado | 404 |
+| 13 | `POST /api/upload/avatar` — PNG con token | ✅ Avatar guardado, perfil actualizado | 200 |
+| 14 | `POST /api/upload/avatar` — tipo no permitido (PDF) | ✅ Error 415 bloqueado | 415 |
+| 15 | Verificar `avatarUrl` en perfil tras upload | ✅ URL relativa almacenada | 200 |
+
+**Todos los endpoints respondieron correctamente. 15/15 pruebas pasadas ✅**
+
+---
+
+## Observaciones y decisiones de diseño
+
+### 🔍 `DB_PASS` vs `DB_PASSWORD` (bug corregido)
+El archivo `config/database.js` usaba `process.env.DB_PASS` pero el `.env` definía `DB_PASSWORD`. Esto causaba que Sequelize recibiera `undefined` como contraseña, y el driver de PostgreSQL (`pg`) fallaba con el error:
+```
+SASL: SCRAM-SERVER-FIRST-MESSAGE: client password must be a string
+```
+**Corrección**: se unificó a `DB_PASSWORD` en `database.js`.
+
+### 🔍 `dotenv` v17 y contraseñas numéricas
+Con `dotenv` v17, valores como `DB_PASSWORD=1234` (solo dígitos) pueden leerse como `Number` en lugar de `String`. PostgreSQL/SASL requiere string obligatoriamente.
+**Buena práctica**: siempre envuelve contraseñas en comillas: `DB_PASSWORD="1234"`.
+
+### 🔍 Validación `isUrl` de Sequelize con `localhost`
+El validador built-in `isUrl` de Sequelize utiliza internamente la librería `validator.js`, que **no acepta `localhost` como dominio válido** en URLs. Esto hacía que `http://localhost:3000/uploads/imagen.png` fuera rechazado.
+**Corrección**: se reemplazó `isUrl` por una función de validación personalizada que acepta tanto rutas relativas (`/uploads/...`) como URLs absolutas (`http://` o `https://`).
+
+### 🔍 Seguridad: `password` expuesto en GET /api/usuarios
+El hash bcrypt del campo `password` se devuelve en los endpoints GET públicos. En producción, **debes excluirlo de las queries**:
+```js
+Usuario.findAll({ attributes: { exclude: ['password'] } })
+```
+
+### 🔍 Sin autorización por roles
+El `authMiddleware` solo verifica que el token sea válido, pero **no verifica que el usuario autenticado sea el propietario** del recurso que modifica. Por ejemplo, el usuario 2 puede hacer PUT sobre `/api/usuarios/1` si tiene un token válido. En producción, agrega validación de pertenencia.
+
+### 🔍 Sync automático (`alter: true`) en desarrollo
+`sequelize.sync({ alter: true })` modifica la estructura de tablas existentes para que coincida con los modelos. Es útil en desarrollo pero **nunca debe usarse en producción** (puede causar pérdida de datos). En producción, usa migraciones con `sequelize-cli`.
+
+---
+
+## Tips de desarrollo
+
+> 💡 **Renovar el token**: El token expira en `JWT_EXPIRES_IN` (por defecto 24h). Implementa un endpoint `/api/auth/refresh` o maneja la expiración en el cliente.
+
+> 💡 **Probar con Thunder Client o Postman**: Importa las rutas y guarda el token como variable de entorno del workspace para no copiarlo manualmente en cada request.
+
+> 💡 **NODE_ENV en producción**: Cambia `NODE_ENV=production` para desactivar el sync automático y el logging SQL de Sequelize.
+
+> 💡 **Cambiar JWT_SECRET en producción**: La clave por defecto `tu_clave_secreta_muy_larga` es solo para desarrollo. Usa una cadena aleatoria de al menos 64 caracteres en producción:
 > ```bash
-> npx sequelize-cli migration:generate --name add-campo-usuario
-> npx sequelize-cli db:migrate
+> node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 > ```
 
-> [!TIP]
-> **Hashear contraseñas** — El campo `password` actualmente guarda texto plano.
-> En un entorno real, instala `bcryptjs` y hashea antes de guardar:
-> ```javascript
-> const bcrypt = require('bcryptjs');
-> const hash = await bcrypt.hash(password, 10);
-> await Usuario.create({ ..., password: hash }, { transaction: t });
+> 💡 **Límite de tamaño de Multer**: El límite de 2 MB se aplica al archivo, no al multipart total. Si subes metadatos junto con el archivo, ajusta `limits.fieldSize` también.
+
+> 💡 **Servir imágenes subidas**: Las imágenes en `uploads/` son accesibles directamente via:
 > ```
-
-> [!TIP]
-> **Variables de entorno en producción** — No uses `.env` en producción.
-> Configura las variables directamente en el entorno de tu servidor
-> (variables de sistema, secretos de Docker, etc.).
-
-> [!TIP]
-> **Paginación en listados** — Para bases de datos grandes, agrega paginación
-> a los endpoints GET:
-> ```javascript
-> const { page = 1, limit = 10 } = req.query;
-> const offset = (page - 1) * limit;
-> const posts = await Post.findAndCountAll({ limit, offset });
+> GET http://localhost:3000/uploads/usuario_1_1234567890.png
 > ```
+> Gracias a `app.use('/uploads', express.static('uploads'))` en `index.js`.
 
-> [!TIP]
-> **Logging SQL en producción** — Desactiva el logging de queries de Sequelize
-> asegurándote de que `NODE_ENV=production` en `.env`. Ya está configurado en
-> `config/database.js` para mostrar queries solo en desarrollo.
+> 💡 **Logs de errores**: Los errores se registran en `logs/` (excluido de git). Revisa `logs/errores.log` para diagnosticar problemas en producción.
 
 ---
 
-## Posibles Errores y Soluciones
+## Errores comunes y soluciones
 
-### ❌ `ECONNREFUSED` al conectar con PostgreSQL
+### ❌ `SASL: client password must be a string`
+**Causa**: `DB_PASSWORD` no está definida o es `undefined` en `process.env`.
+**Solución**:
+1. Verifica que el nombre de la variable en `.env` coincide con el que se usa en `config/database.js` (`DB_PASSWORD`).
+2. Si el valor es numérico, envuélvelo en comillas: `DB_PASSWORD="1234"`.
 
-```
-Error: connect ECONNREFUSED 127.0.0.1:5432
-```
+---
 
-**Causa**: PostgreSQL no está corriendo.
+### ❌ `relation "usuarios" does not exist`
+**Causa**: Las tablas no han sido creadas en PostgreSQL.
+**Solución**: Asegúrate de tener `NODE_ENV=development` en `.env` para que Sequelize ejecute `sync({ alter: true })` al iniciar.
 
+---
+
+### ❌ `JsonWebTokenError: invalid signature`
+**Causa**: El token fue firmado con un `JWT_SECRET` diferente al actual (p. ej., se cambió la variable).
+**Solución**: El usuario debe hacer login nuevamente para obtener un token válido.
+
+---
+
+### ❌ `TokenExpiredError: jwt expired`
+**Causa**: El token superó el tiempo de `JWT_EXPIRES_IN`.
+**Solución**: El usuario debe volver a hacer login. El mensaje de error del middleware es `"El token ha expirado."` con status 401.
+
+---
+
+### ❌ `MulterError: File too large`
+**Causa**: El archivo supera el límite de 2 MB configurado en `uploadMiddleware.js`.
+**Solución**: Comprime/redimensiona la imagen antes de subirla, o ajusta `limits.fileSize` en `uploadMiddleware.js`.
+
+---
+
+### ❌ `Tipo de archivo no permitido`
+**Causa**: Se intentó subir un archivo con MIME type distinto a `image/jpeg`, `image/png` o `image/webp`.
+**Solución**: Convierte la imagen al formato correcto. El error devuelve status `415 Unsupported Media Type`.
+
+---
+
+### ❌ Puerto 3000 en uso al iniciar
+**Causa**: Otro proceso está usando el puerto.
 **Solución**:
 ```bash
-# Linux / macOS
-sudo systemctl start postgresql
-
-# o con pg_ctl
-pg_ctl start -D /var/lib/postgresql/data
+# Encontrar el proceso
+lsof -i :3000
+# Terminarlo
+kill -9 <PID>
 ```
+O cambia `PORT` en `.env`.
 
 ---
 
-### ❌ `password authentication failed for user "modulo7_db"`
+### ❌ `SequelizeUniqueConstraintError` al registrar
+**Causa**: El email ya existe en la tabla `usuarios`.
+**Comportamiento esperado**: El `authController.register` detecta esto **antes** de insertar y devuelve 409 con mensaje `"El email ya está registrado."` — sin depender del error de Sequelize.
 
-**Causa**: Las credenciales en `.env` no coinciden con las configuradas en PostgreSQL.
+---
 
-**Solución**:
+## 📦 Dependencias
+
+| Paquete | Versión | Uso |
+|---------|---------|-----|
+| `express` | ^5.x | Framework HTTP |
+| `sequelize` | ^6.x | ORM PostgreSQL |
+| `pg` + `pg-hstore` | ^8.x | Driver PostgreSQL |
+| `bcryptjs` | ^2.x | Hash de contraseñas |
+| `jsonwebtoken` | ^9.x | Firma y verificación JWT |
+| `multer` | ^1.x | Subida de archivos |
+| `dotenv` | ^17.x | Variables de entorno |
+| `nodemon` | ^3.x | Recarga en desarrollo |
+
+---
+
+## 📁 Git
+
 ```bash
-sudo -u postgres psql
-ALTER USER modulo7_db WITH PASSWORD 'test1';
-\q
+# Ramas
+main  →  rama principal (producción)
+
+# Historial de commits del Módulo 8
+feat: implementar autenticación con registro, login y JWT
+chore: agregar .gitignore (excluir node_modules, .env, logs, uploads)
+feat: proteger rutas privadas con middleware de autenticación JWT
+feat: configurar Multer para subida de imágenes con validación de tipo y tamaño
+refactor: estandarizar respuestas API al formato {status, message, data}
+fix: corregir DB_PASS→DB_PASSWORD, validación avatarUrl y URL relativa en uploadController
 ```
 
 ---
 
-### ❌ `database "modulo7_db" does not exist`
-
-**Causa**: La base de datos no fue creada antes de arrancar el servidor.
-
-**Solución**:
-```bash
-sudo -u postgres psql -c "CREATE DATABASE modulo7_db OWNER modulo7_db;"
-```
-
----
-
-### ❌ `Cannot find module 'sequelize'`
-
-**Causa**: Los paquetes no están instalados (falta `npm install`).
-
-**Solución**:
-```bash
-npm install
-```
-
----
-
-### ❌ `UniqueConstraintError` al crear usuario
-
-```json
-{ "error": "El recurso ya existe.", "detalles": ["El email ya está registrado."] }
-```
-
-**Causa**: Ya existe un usuario con ese email en la base de datos.
-
-**Solución**: Usa un email diferente o limpia la tabla de prueba:
-```bash
-sudo -u postgres psql -d modulo7_db -c "DELETE FROM usuarios;"
-```
-
----
-
-### ❌ `ValidationError` — campo requerido vacío
-
-```json
-{ "error": "Error de validación.", "detalles": ["El nombre no puede estar vacío."] }
-```
-
-**Causa**: El body del request no incluye todos los campos requeridos.
-
-**Solución**: Asegúrate de enviar `Content-Type: application/json` y el body completo.
-
----
-
-### ❌ `Cannot find module './install'` (error al instalar)
-
-**Causa**: El usuario escribió `nstall` en lugar de `npm install` (falta la `i`).
-
-**Solución**:
-```bash
-npm install sequelize pg pg-hstore
-```
-
----
-
-### ❌ `RollbackError` en transacción
-
-**Causa**: La transacción fue comprometida o revertida antes de que Sequelize pudiera hacer rollback automáticamente (por ejemplo, llamar a `t.commit()` y luego lanzar un error).
-
-**Solución**: Nunca llames a `t.commit()` o `t.rollback()` manualmente dentro de un bloque `try/catch` si usas `{ transaction: t }` en cada operación. El patrón correcto es:
-
-```javascript
-const t = await sequelize.transaction();
-try {
-    await Model.create({ ... }, { transaction: t });
-    await t.commit();         // Solo al final, si todo OK
-} catch (error) {
-    await t.rollback();       // Solo en catch
-    next(error);
-}
-```
-
----
-
-## Observaciones Técnicas
-
-> [!NOTE]
-> **Orden de arranque**: El servidor no inicia hasta que `connectDB()` resuelve
-> con éxito. Esto garantiza que ninguna petición HTTP llega antes de que la
-> conexión a la base de datos esté establecida.
-
-> [!NOTE]
-> **CASCADE en eliminación**: Al eliminar un `Usuario`, su `Perfil` asociado
-> se elimina automáticamente por `onDelete: 'CASCADE'` definido en las asociaciones.
-> Los `Post` del usuario también se eliminan. Ten cuidado en entornos de producción.
-
-> [!NOTE]
-> **`alter: true` puede ser destructivo**: Si renombras un campo en el modelo,
-> Sequelize puede crear una columna nueva y dejar la vieja intacta, perdiendo datos.
-> Usa siempre migraciones en producción.
-
-> [!NOTE]
-> **`pg-hstore`** es requerido por Sequelize para manejar el tipo de datos `HSTORE`
-> de PostgreSQL, aunque no lo uses directamente. Debe estar instalado.
-
-> [!NOTE]
-> **El `errorMiddleware` debe ser el último `app.use()`** en `index.js`.
-> Express lo reconoce como manejador de errores por su firma de 4 argumentos
-> `(err, req, res, next)`. Si hay cualquier otro middleware después, los errores
-> no llegarán a él correctamente.
-
----
-
-## Créditos
-
-**Proyecto**: Evaluación Integrada — Módulo 7  
-**Estudiante**: Fabián Del Villar  
-**Módulos cubiertos**: Sub-tareas 7.2 · 7.3 · 7.4 · 7.5 · 7.6
-
----
+*Módulo 8 — Curso Backend Node.js · Fabián Del Villar · 2026*
