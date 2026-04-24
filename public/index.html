@@ -1,25 +1,415 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
-    <title>Backend</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API Explorer — Módulo 8</title>
+  <meta name="description" content="Interfaz visual para explorar la API RESTful del Módulo 8 con JWT, CRUD y subida de archivos." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
-    <div class="container">
-        <h1>Node.js & Express Web App</h1>
 
-        <p>Módulo 7</p>
-
-        <ul>
-            <a href="/">Home Principal</a>
-            <a href="/status">Status del Servidor</a>
-        </ul>
-
+<!-- ── SIDEBAR ──────────────────────────────────────────────────────────────── -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="logo">
+      <span class="logo-icon">⚡</span>
+      <div>
+        <span class="logo-title">API Explorer</span>
+        <span class="logo-sub">Módulo 8</span>
+      </div>
     </div>
-</body>
+  </div>
 
+  <div class="token-status" id="tokenStatus">
+    <span class="token-dot inactive" id="tokenDot"></span>
+    <span id="tokenLabel">Sin autenticar</span>
+  </div>
+
+  <nav class="nav-sections">
+    <div class="nav-group">
+      <span class="nav-group-title">🔐 Autenticación</span>
+      <button class="nav-item active" data-section="auth-register">Registrar usuario</button>
+      <button class="nav-item" data-section="auth-login">Login</button>
+    </div>
+    <div class="nav-group">
+      <span class="nav-group-title">👤 Usuarios</span>
+      <button class="nav-item" data-section="usuarios-listar">Listar usuarios</button>
+      <button class="nav-item" data-section="usuarios-obtener">Obtener por ID</button>
+      <button class="nav-item" data-section="usuarios-crear">Crear usuario</button>
+      <button class="nav-item" data-section="usuarios-actualizar">Actualizar</button>
+      <button class="nav-item" data-section="usuarios-eliminar">Eliminar</button>
+    </div>
+    <div class="nav-group">
+      <span class="nav-group-title">📝 Posts</span>
+      <button class="nav-item" data-section="posts-listar">Listar posts</button>
+      <button class="nav-item" data-section="posts-obtener">Obtener por ID</button>
+      <button class="nav-item" data-section="posts-crear">Crear post</button>
+      <button class="nav-item" data-section="posts-actualizar">Actualizar</button>
+      <button class="nav-item" data-section="posts-eliminar">Eliminar</button>
+    </div>
+    <div class="nav-group">
+      <span class="nav-group-title">📁 Archivos</span>
+      <button class="nav-item" data-section="upload-avatar">Subir avatar</button>
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <button class="btn-clear-token" id="btnClearToken" onclick="clearToken()">Cerrar sesión</button>
+  </div>
+</aside>
+
+<!-- ── MAIN ─────────────────────────────────────────────────────────────────── -->
+<main class="main">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="section-badge" id="currentMethod">POST</span>
+      <span class="section-url" id="currentUrl">/api/auth/register</span>
+    </div>
+    <div class="topbar-right">
+      <span class="server-url">http://localhost:3000</span>
+      <span class="status-ping" id="serverPing">●</span>
+    </div>
+  </header>
+
+  <!-- Content area -->
+  <div class="content">
+
+    <!-- ── AUTH: REGISTER ──────────────────────────────────────────────── -->
+    <section class="panel active" id="panel-auth-register">
+      <div class="panel-header">
+        <h2>Registrar nuevo usuario</h2>
+        <p>Crea una cuenta. El password se hashea con bcryptjs y se devuelve un JWT.</p>
+      </div>
+      <div class="panel-body">
+        <div class="form-grid">
+          <div class="field">
+            <label>Nombre <span class="required">*</span></label>
+            <input type="text" id="reg-nombre" placeholder="Juan Pérez" />
+          </div>
+          <div class="field">
+            <label>Email <span class="required">*</span></label>
+            <input type="email" id="reg-email" placeholder="juan@ejemplo.com" />
+          </div>
+          <div class="field">
+            <label>Password <span class="required">*</span></label>
+            <input type="password" id="reg-password" placeholder="Mínimo 6 caracteres" />
+          </div>
+          <div class="field">
+            <label>Bio <span class="optional">(opcional)</span></label>
+            <input type="text" id="reg-bio" placeholder="Desarrollador web..." />
+          </div>
+        </div>
+        <button class="btn-send" onclick="doRegister()">
+          <span class="btn-icon">→</span> Enviar petición
+        </button>
+      </div>
+    </section>
+
+    <!-- ── AUTH: LOGIN ─────────────────────────────────────────────────── -->
+    <section class="panel" id="panel-auth-login">
+      <div class="panel-header">
+        <h2>Login</h2>
+        <p>Inicia sesión. El token JWT se guarda automáticamente para las rutas protegidas.</p>
+      </div>
+      <div class="panel-body">
+        <div class="form-grid">
+          <div class="field">
+            <label>Email <span class="required">*</span></label>
+            <input type="email" id="login-email" placeholder="juan@ejemplo.com" />
+          </div>
+          <div class="field">
+            <label>Password <span class="required">*</span></label>
+            <input type="password" id="login-password" placeholder="Tu contraseña" />
+          </div>
+        </div>
+        <button class="btn-send" onclick="doLogin()">
+          <span class="btn-icon">→</span> Enviar petición
+        </button>
+      </div>
+    </section>
+
+    <!-- ── USUARIOS: LISTAR ────────────────────────────────────────────── -->
+    <section class="panel" id="panel-usuarios-listar">
+      <div class="panel-header">
+        <h2>Listar usuarios</h2>
+        <p>Devuelve todos los usuarios con su perfil asociado. Endpoint público.</p>
+      </div>
+      <div class="panel-body">
+        <div class="info-box">🔓 No requiere autenticación</div>
+        <button class="btn-send" onclick="doListarUsuarios()">
+          <span class="btn-icon">→</span> Enviar petición
+        </button>
+      </div>
+    </section>
+
+    <!-- ── USUARIOS: OBTENER ───────────────────────────────────────────── -->
+    <section class="panel" id="panel-usuarios-obtener">
+      <div class="panel-header">
+        <h2>Obtener usuario por ID</h2>
+        <p>Devuelve un usuario con su perfil. Endpoint público.</p>
+      </div>
+      <div class="panel-body">
+        <div class="form-grid cols-1">
+          <div class="field">
+            <label>ID del usuario <span class="required">*</span></label>
+            <input type="number" id="get-usuario-id" placeholder="1" min="1" />
+          </div>
+        </div>
+        <button class="btn-send" onclick="doObtenerUsuario()">
+          <span class="btn-icon">→</span> Enviar petición
+        </button>
+      </div>
+    </section>
+
+    <!-- ── USUARIOS: CREAR ────────────────────────────────────────────── -->
+    <section class="panel" id="panel-usuarios-crear">
+      <div class="panel-header">
+        <h2>Crear usuario (directo)</h2>
+        <p>Crea usuario + perfil en transacción. <strong>Nota:</strong> el password NO se hashea aquí — usa Register para eso.</p>
+      </div>
+      <div class="panel-body">
+        <div class="form-grid">
+          <div class="field">
+            <label>Nombre <span class="required">*</span></label>
+            <input type="text" id="crear-usuario-nombre" placeholder="Ana García" />
+          </div>
+          <div class="field">
+            <label>Email <span class="required">*</span></label>
+            <input type="email" id="crear-usuario-email" placeholder="ana@ejemplo.com" />
+          </div>
+          <div class="field">
+            <label>Password <span class="required">*</span></label>
+            <input type="password" id="crear-usuario-password" placeholder="password" />
+          </div>
+          <div class="field">
+            <label>Bio <span class="optional">(opcional)</span></label>
+            <input type="text" id="crear-usuario-bio" placeholder="Bio..." />
+          </div>
+        </div>
+        <button class="btn-send" onclick="doCrearUsuario()">
+          <span class="btn-icon">→</span> Enviar petición
+        </button>
+      </div>
+    </section>
+
+    <!-- ── USUARIOS: ACTUALIZAR ───────────────────────────────────────── -->
+    <section class="panel" id="panel-usuarios-actualizar">
+      <div class="panel-header">
+        <h2>Actualizar usuario</h2>
+        <p>Actualiza los datos de un usuario. Requiere JWT.</p>
+      </div>
+      <div class="panel-body">
+        <div class="auth-required-badge">🔐 Requiere autenticación</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>ID del usuario <span class="required">*</span></label>
+            <input type="number" id="upd-usuario-id" placeholder="1" min="1" />
+          </div>
+          <div class="field">
+            <label>Nuevo nombre</label>
+            <input type="text" id="upd-usuario-nombre" placeholder="Nuevo nombre" />
+          </div>
+          <div class="field">
+            <label>Nuevo email</label>
+            <input type="email" id="upd-usuario-email" placeholder="nuevo@email.com" />
+          </div>
+        </div>
+        <button class="btn-send" onclick="doActualizarUsuario()">
+          <span class="btn-icon">→</span> Enviar petición
+        </button>
+      </div>
+    </section>
+
+    <!-- ── USUARIOS: ELIMINAR ─────────────────────────────────────────── -->
+    <section class="panel" id="panel-usuarios-eliminar">
+      <div class="panel-header">
+        <h2>Eliminar usuario</h2>
+        <p>Elimina un usuario y su perfil en CASCADE. Requiere JWT.</p>
+      </div>
+      <div class="panel-body">
+        <div class="auth-required-badge">🔐 Requiere autenticación</div>
+        <div class="form-grid cols-1">
+          <div class="field">
+            <label>ID del usuario <span class="required">*</span></label>
+            <input type="number" id="del-usuario-id" placeholder="1" min="1" />
+          </div>
+        </div>
+        <div class="danger-warning">⚠️ Esta acción no se puede deshacer.</div>
+        <button class="btn-send danger" onclick="doEliminarUsuario()">
+          <span class="btn-icon">✕</span> Eliminar usuario
+        </button>
+      </div>
+    </section>
+
+    <!-- ── POSTS: LISTAR ──────────────────────────────────────────────── -->
+    <section class="panel" id="panel-posts-listar">
+      <div class="panel-header">
+        <h2>Listar posts</h2>
+        <p>Devuelve todos los posts con el usuario autor incluido. Endpoint público.</p>
+      </div>
+      <div class="panel-body">
+        <div class="info-box">🔓 No requiere autenticación</div>
+        <button class="btn-send" onclick="doListarPosts()">
+          <span class="btn-icon">→</span> Enviar petición
+        </button>
+      </div>
+    </section>
+
+    <!-- ── POSTS: OBTENER ─────────────────────────────────────────────── -->
+    <section class="panel" id="panel-posts-obtener">
+      <div class="panel-header">
+        <h2>Obtener post por ID</h2>
+        <p>Devuelve un post con su autor. Endpoint público.</p>
+      </div>
+      <div class="panel-body">
+        <div class="form-grid cols-1">
+          <div class="field">
+            <label>ID del post <span class="required">*</span></label>
+            <input type="number" id="get-post-id" placeholder="1" min="1" />
+          </div>
+        </div>
+        <button class="btn-send" onclick="doObtenerPost()">
+          <span class="btn-icon">→</span> Enviar petición
+        </button>
+      </div>
+    </section>
+
+    <!-- ── POSTS: CREAR ───────────────────────────────────────────────── -->
+    <section class="panel" id="panel-posts-crear">
+      <div class="panel-header">
+        <h2>Crear post</h2>
+        <p>Crea un nuevo post asociado al usuario autenticado. Requiere JWT.</p>
+      </div>
+      <div class="panel-body">
+        <div class="auth-required-badge">🔐 Requiere autenticación</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Título <span class="required">*</span></label>
+            <input type="text" id="crear-post-titulo" placeholder="Mi primer post" />
+          </div>
+          <div class="field">
+            <label>Usuario ID <span class="required">*</span></label>
+            <input type="number" id="crear-post-usuarioId" placeholder="1" min="1" />
+          </div>
+          <div class="field full-width">
+            <label>Contenido <span class="required">*</span></label>
+            <textarea id="crear-post-contenido" rows="4" placeholder="Escribe el contenido del post..."></textarea>
+          </div>
+        </div>
+        <button class="btn-send" onclick="doCrearPost()">
+          <span class="btn-icon">→</span> Enviar petición
+        </button>
+      </div>
+    </section>
+
+    <!-- ── POSTS: ACTUALIZAR ──────────────────────────────────────────── -->
+    <section class="panel" id="panel-posts-actualizar">
+      <div class="panel-header">
+        <h2>Actualizar post</h2>
+        <p>Modifica un post existente. Requiere JWT.</p>
+      </div>
+      <div class="panel-body">
+        <div class="auth-required-badge">🔐 Requiere autenticación</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>ID del post <span class="required">*</span></label>
+            <input type="number" id="upd-post-id" placeholder="1" min="1" />
+          </div>
+          <div class="field">
+            <label>Nuevo título</label>
+            <input type="text" id="upd-post-titulo" placeholder="Título actualizado" />
+          </div>
+          <div class="field full-width">
+            <label>Nuevo contenido</label>
+            <textarea id="upd-post-contenido" rows="4" placeholder="Contenido actualizado..."></textarea>
+          </div>
+        </div>
+        <button class="btn-send" onclick="doActualizarPost()">
+          <span class="btn-icon">→</span> Enviar petición
+        </button>
+      </div>
+    </section>
+
+    <!-- ── POSTS: ELIMINAR ────────────────────────────────────────────── -->
+    <section class="panel" id="panel-posts-eliminar">
+      <div class="panel-header">
+        <h2>Eliminar post</h2>
+        <p>Elimina un post por ID. Requiere JWT.</p>
+      </div>
+      <div class="panel-body">
+        <div class="auth-required-badge">🔐 Requiere autenticación</div>
+        <div class="form-grid cols-1">
+          <div class="field">
+            <label>ID del post <span class="required">*</span></label>
+            <input type="number" id="del-post-id" placeholder="1" min="1" />
+          </div>
+        </div>
+        <div class="danger-warning">⚠️ Esta acción no se puede deshacer.</div>
+        <button class="btn-send danger" onclick="doEliminarPost()">
+          <span class="btn-icon">✕</span> Eliminar post
+        </button>
+      </div>
+    </section>
+
+    <!-- ── UPLOAD: AVATAR ─────────────────────────────────────────────── -->
+    <section class="panel" id="panel-upload-avatar">
+      <div class="panel-header">
+        <h2>Subir avatar</h2>
+        <p>Sube una imagen de perfil. Acepta JPEG, PNG, WebP. Límite: 2 MB. Requiere JWT.</p>
+      </div>
+      <div class="panel-body">
+        <div class="auth-required-badge">🔐 Requiere autenticación</div>
+        <div class="upload-zone" id="uploadZone" onclick="document.getElementById('avatarFile').click()">
+          <div class="upload-icon">🖼️</div>
+          <div class="upload-text">Haz clic o arrastra una imagen aquí</div>
+          <div class="upload-hint">JPEG · PNG · WebP · máx 2 MB</div>
+          <input type="file" id="avatarFile" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="handleFileSelect(this)" />
+        </div>
+        <div class="file-preview" id="filePreview" style="display:none">
+          <img id="previewImg" src="" alt="Preview" />
+          <div class="file-info" id="fileInfo"></div>
+          <button class="btn-remove-file" onclick="removeFile()">✕</button>
+        </div>
+        <button class="btn-send" onclick="doUploadAvatar()">
+          <span class="btn-icon">↑</span> Subir imagen
+        </button>
+      </div>
+    </section>
+
+    <!-- ── RESPONSE PANEL ─────────────────────────────────────────────── -->
+    <div class="response-panel" id="responsePanel" style="display:none">
+      <div class="response-header">
+        <span class="response-title">Respuesta</span>
+        <div class="response-meta">
+          <span class="response-status" id="responseStatus"></span>
+          <span class="response-time" id="responseTime"></span>
+          <button class="btn-copy" onclick="copyResponse()" title="Copiar JSON">⎘ Copiar</button>
+        </div>
+      </div>
+      <pre class="response-body" id="responseBody"></pre>
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+<!-- ── TOKEN MODAL ──────────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="tokenModal" style="display:none">
+  <div class="modal">
+    <div class="modal-icon">🎉</div>
+    <h3>¡Autenticado!</h3>
+    <p>Token JWT guardado. Ahora puedes acceder a las rutas protegidas.</p>
+    <div class="token-preview" id="tokenPreview"></div>
+    <button class="btn-send" onclick="closeModal()">Continuar</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
 </html>
